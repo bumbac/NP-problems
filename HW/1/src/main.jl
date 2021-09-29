@@ -4,14 +4,27 @@ main:
 - Author: sutymate
 - Date: 2021-09-26
 =#
+using Pkg
 using Combinatorics
+using DataStructures
+using BenchmarkTools
 
 mutable struct BagInst
-    ID
-    n
-    M
-    B
+    ID::Int64
+    n::Int64
+    M::Int64
+    B::Int64
     items
+end
+
+mutable struct BBNode
+    ID::Int64
+    lbound::Float64
+    profit::Float64
+    level::Int64
+    flag::Int8
+    parent::Ref
+    decision
 end
 
 
@@ -31,23 +44,97 @@ function brute(example)
             end
         end
         if sumprice >= price_limit && sumweight <= weight_limit
-            println("Found solution ", sset)
+            # println("Found solution ", sset)
             return sset
         end
     end
-    println(example.ID, " found no solution.")
+    # println(example.ID, " found no solution.")
     end
 
 function bnb(example)
-    println("TBA")
+    matrix = zeros(Int64, example.n, 2, example.n)
+    i_id = 1
+    idx_weight = 1
+    idx_price = 2
+    for item in example.items
+        matrix[i_id, idx_price] = item.price
+        matrix[i_id, idx_weight] = item.weight
+        i_id += 1
     end
 
-function eval(instances)
-    for example in instances
-        println("Solving ", example.ID, " using brute force, capacity ", example.B)
-        brute(example)
-        # bnb(example)
+    lbound = -Inf
+    root = BBNode(1, lbound, 0, 0, 0, missing, zeros(example.n))
+    leaves = Vector{BBNode}()
+    push!(leaves, root)
+    i_level = 0
+    i_node = 1
+
+    while ! isempty(leaves)
+        node = leaves[i_node]
+        while node.flag == 2 && i_node <= length(leaves)
+            node = leaves[i_node]
+            i_node += 1
+        end
+        curr_capacity = 0
+        curr_profit = 0
+        idx = 1
+        while idx <= example.n
+            if curr_capacity == example.B
+                break
+            end
+
+            if (curr_capacity + matrix[idx, idx_weight]) <= example.B
+                curr_capacity += matrix[idx, idx_weight]
+                curr_profit += matrix[idx, idx_price]
+                root.decision[idx] = 1
+                idx += 1
+            else
+                if lbound < curr_profit
+                    lbound = curr_profit
+                    it = iterate(leaves)
+                    while it != nothing
+                        item, state = it
+                        if (item.flage !=2) && (item.lbound < lbound)
+                            item.flag = 2
+                        end
+                        it = iterate(leaves, state)
+                    end
+                end
+                remain = example.B - curr_capacity
+                fraction = matrix[idx, idx_price]/matrix[idx, idx_weight]*remain
+                curr_profit += fraction
+                curr_capacity = example.B
+        end
     end
+    end
+
+    i_id += 1
+    decision = copy(root_decision)
+    i_level += 1
+    decision[i_level] = 0
+    left = BBNode(i_id, -Inf, 0, i_level, 0, Ref(root), copy(decision))
+    i_id += 1
+    decision[i_level] = 1
+    right = BBNode(i_id, -Inf, 0, i_level, 0, Ref(root), copy(decision))
+    push!(leaves, left)
+    push!(leaves, right)
+
+
+end
+
+#function branch(node)
+#end
+
+function eval(instances)
+    brute_results = []
+    for example in instances[1:3]
+        println("Solving ", example.ID, " using brute force, capacity ", example.B)
+        result = @benchmark brute($example)
+        push!(brute_results, (example.ID, example.n, length(example.items), result.times))
+        # bnb(example)
+        # push!(bnb_results, (example, result))
+    end
+    return brute_results
     end
 
 function readFile(name::String)
@@ -84,8 +171,11 @@ function readFile(name::String)
             end
             push!(instances, bag)
         end
-        eval(instances)
         end
+        return instances
     end
 
-readFile("../data/NR/NR15_inst.dat")
+instances = readFile("../data/NR/NR4_inst.dat")
+brute_results = eval(instances)
+dump(brute_results)
+
