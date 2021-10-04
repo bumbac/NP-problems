@@ -5,9 +5,13 @@ main:
 - Date: 2021-09-26
 =#
 using Pkg
+using Plots
+using Statistics
 using Combinatorics
 using DataStructures
 using BenchmarkTools
+using DataFrames
+using DataAPI
 
 mutable struct BagInst
     ID::Int64
@@ -19,13 +23,17 @@ end
 
 mutable struct BBNode
     ID::Int64
-    lbound::Float64
+    ubound::Float64
     profit::Float64
+    weight::Int64
     level::Int64
     flag::Int8
+    included::Bool
     parent::Ref
     decision
 end
+import Base: isless
+isless(a::BBNode, b::BBNode) = isless(a.ubound, b.ubound)
 
 
 function brute(example)
@@ -52,78 +60,119 @@ function brute(example)
     end
 
 function bnb(example)
-    matrix = zeros(Int64, example.n, 2, example.n)
+    visited_configurations = 0
+    matrix = zeros(Int64, example.n, 3)
     i_id = 1
     idx_weight = 1
     idx_price = 2
+    idx_ID = 3
     for item in example.items
-        matrix[i_id, idx_price] = item.price
-        matrix[i_id, idx_weight] = item.weight
+        matrix[i_id, idx_weight] = item[idx_weight]
+        matrix[i_id, idx_price] = item[idx_price]
+        matrix[i_id, idx_ID] = item[idx_ID]
         i_id += 1
     end
 
-    lbound = -Inf
-    root = BBNode(1, lbound, 0, 0, 0, missing, zeros(example.n))
-    leaves = Vector{BBNode}()
-    push!(leaves, root)
+    idx = 1
+    max = -Inf
+    ubound = -Inf
+    curr_capacity = 0
+    curr_profit = 0
     i_level = 0
-    i_node = 1
-
+    i_node = 0
+    flag = 0
+    root = BBNode(i_node, ubound, curr_profit, curr_capacity, i_level, flag, false, Ref(missing), zeros(example.n))
+    i_level += 1
+    i_node += 1
+    leaves = MutableBinaryMaxHeap{BBNode}()
+    push!(leaves, root)
+    node = root
+    max_node = root
     while ! isempty(leaves)
-        node = leaves[i_node]
-        while node.flag == 2 && i_node <= length(leaves)
-            node = leaves[i_node]
-            i_node += 1
-        end
-        curr_capacity = 0
-        curr_profit = 0
-        idx = 1
-        while idx <= example.n
-            if curr_capacity == example.B
-                break
+        node  = pop!(leaves)
+        i_level = node.level + 1
+        for included in [0, 1]
+            curr_capacity = node.weight
+            real_capacity = node.weight
+            curr_profit = node.profit
+            real_profit = node.profit
+            ubound = node.ubound
+            idx = i_level
+            if idx > example.n break end
+            flag = 0
+            decision = deepcopy(node.decision)
+            visited_configurations += 1
+            if curr_capacity + matrix[idx, idx_weight] <= example.M
+                curr_capacity += matrix[idx, idx_weight]*included
+                real_capacity = curr_capacity
+                curr_profit += matrix[idx, idx_price]*included
+                real_profit = curr_profit
+                decision[idx] = included
+            else
+                if included == 1 flag = 2 end
             end
-
-            if (curr_capacity + matrix[idx, idx_weight]) <= example.B
+            # TODO BREAK CUZ LEAF IS NOT POSSIBLE
+            if flag == 2 continue end
+            idx += 1
+            while idx <= example.n && curr_capacity + matrix[idx, idx_weight] <= example.M
                 curr_capacity += matrix[idx, idx_weight]
                 curr_profit += matrix[idx, idx_price]
-                root.decision[idx] = 1
                 idx += 1
-            else
-                if lbound < curr_profit
-                    lbound = curr_profit
-                    it = iterate(leaves)
-                    while it != nothing
-                        item, state = it
-                        if (item.flage !=2) && (item.lbound < lbound)
-                            item.flag = 2
-                        end
-                        it = iterate(leaves, state)
+            end
+            fraction = 0
+            if idx <= example.n && curr_capacity != example.M
+                remain = example.M - curr_capacity
+                fraction = matrix[idx, idx_price]/matrix[idx, idx_weight]*remain
+            end
+            if ubound < curr_profit ubound = fraction + curr_profit end
+
+            leaf = BBNode(i_node, ubound, curr_profit, real_capacity, i_level, flag, Bool(included), Ref(node), decision)
+            i_node += 1
+            push!(leaves, leaf)
+
+            if max < ubound
+                max = ubound
+                max_node = leaf
+                leaves = extract_all!(leaves)
+                it = iterate(leaves)
+                while it != nothing
+                    item, state = it
+                    if (item.flag != 2) && (item.ubound < max)
+                        item.flag = 2
+                    end
+                    it = iterate(leaves, state)
+                end
+                new_leaves = MutableBinaryMaxHeap{BBNode}()
+                for leaf in leaves
+                    if leaf.flag != 2 || leaf.level == 0
+                        push!(new_leaves, leaf)
                     end
                 end
-                remain = example.B - curr_capacity
-                fraction = matrix[idx, idx_price]/matrix[idx, idx_weight]*remain
-                curr_profit += fraction
-                curr_capacity = example.B
+                leaves = new_leaves
+            end
         end
     end
+#     println("\n\n\n\n")
+#     println("N ", example.n, " capacity ", example.M, " min price ", example.B, " profit ", max_node.profit)
+#     println(matrix)
+    checksum = 0
+    checkweight = 0
+    checkitems = zeros(Int8, example.n)
+    for idx in 1:example.n
+        if max_node.decision[idx] == 1
+#             println(matrix[idx, idx_weight])
+#             println(matrix[idx, idx_price])
+            checksum += matrix[idx, idx_price]
+            checkweight += matrix[idx, idx_weight]
+            checkitems[matrix[idx, idx_ID]] = 1
+        end
     end
-
-    i_id += 1
-    decision = copy(root_decision)
-    i_level += 1
-    decision[i_level] = 0
-    left = BBNode(i_id, -Inf, 0, i_level, 0, Ref(root), copy(decision))
-    i_id += 1
-    decision[i_level] = 1
-    right = BBNode(i_id, -Inf, 0, i_level, 0, Ref(root), copy(decision))
-    push!(leaves, left)
-    push!(leaves, right)
-
-
+#     println("CHECKSUM: ", checksum)
+#     println("CHECKWEIGHT: ", checkweight)
+#     println("CHECKITEMS: ", checkitems)
+#     return checksum
+    return visited_configurations
 end
-
-#function branch(node)
-#end
 
 function eval(instances)
     brute_results = []
@@ -158,7 +207,8 @@ function readFile(name::String)
                 println("ERROR in parsing definition")
             end
             bag = BagInst(ID, n, M, B, [])
-            for i in 5:(length(pieces) - 1)
+            idx = 1
+            for i in 5:2:(length(pieces) - 1)
                 weight = 0
                 price = 0
                 try
@@ -167,15 +217,37 @@ function readFile(name::String)
                 catch e
                     println("ERROR in parsing pairs")
                 end
-                push!(bag.items, (weight, price))
+                push!(bag.items, (weight, price, idx))
+                idx += 1
             end
+            sort!(bag.items, by = x -> (x[2]/x[1]), rev=true)
             push!(instances, bag)
         end
-        end
-        return instances
     end
+    return instances
+end
 
-instances = readFile("../data/NR/NR4_inst.dat")
-brute_results = eval(instances)
-dump(brute_results)
+instances = readFile("../data/NR/NR40_inst.dat")
+# brute_results = eval(instances)
+# dump(brute_results)
+sums = []
+bench = zeros(Int64, length(instances), 2)
+idx = 1
+idx_n = 1
+idx_visited = 2
+uniques = Set()
+for example in instances
+    visited_configurations = bnb(example)
+    bench[idx, idx_n] = example.n
+    bench[idx, idx_visited] = visited_configurations
+    global idx += 1
+    push!(uniques, visited_configurations)
+end
+println(std(bench[:, idx_visited]))
+println(var(bench[:, idx_visited]))
+println(mean(bench[:, idx_visited]))
+println(median(bench[:, idx_visited]))
+histogram([1:length(instances)], bench[:,idx_visited])
+savefig("./hist.png")
+# dump(sums)
 
