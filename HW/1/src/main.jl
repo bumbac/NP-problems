@@ -4,14 +4,12 @@ main:
 - Author: sutymate
 - Date: 2021-09-26
 =#
+
 using Pkg
-using Plots
 using Statistics
 using Combinatorics
 using DataStructures
 using BenchmarkTools
-using DataFrames
-using DataAPI
 
 mutable struct BagInst
     ID::Int64
@@ -32,6 +30,7 @@ mutable struct BBNode
     parent::Ref
     decision
 end
+
 import Base: isless
 isless(a::BBNode, b::BBNode) = isless(a.ubound, b.ubound)
 
@@ -41,22 +40,27 @@ function brute(example)
     price_limit = example.B
     sumprice = 0
     sumweight = 0
+    attempts = 0
     for sset in powerset(example.items)
+        attempts += 1
         sumprice = 0
         sumweight = 0
+        n = 0
         for item in sset
             sumweight += item[1]
             sumprice += item[2]
+            n += 1
             if sumweight > weight_limit
                 break
             end
         end
         if sumprice >= price_limit && sumweight <= weight_limit
             # println("Found solution ", sset)
-            return sset
+            return (sumweight, sumprice, n, attempts)
         end
     end
     # println(example.ID, " found no solution.")
+    return (-1, -1, -1, attempts)
     end
 
 function bnb(example)
@@ -158,6 +162,7 @@ function bnb(example)
     checksum = 0
     checkweight = 0
     checkitems = zeros(Int8, example.n)
+    check_n = 0
     for idx in 1:example.n
         if max_node.decision[idx] == 1
 #             println(matrix[idx, idx_weight])
@@ -165,23 +170,23 @@ function bnb(example)
             checksum += matrix[idx, idx_price]
             checkweight += matrix[idx, idx_weight]
             checkitems[matrix[idx, idx_ID]] = 1
+            check_n += 1
         end
     end
 #     println("CHECKSUM: ", checksum)
 #     println("CHECKWEIGHT: ", checkweight)
 #     println("CHECKITEMS: ", checkitems)
 #     return checksum
-    return visited_configurations
+    return (checkweight, checksum, check_n, visited_configurations)
 end
 
 function eval(instances)
     brute_results = []
-    for example in instances[1:3]
-        println("Solving ", example.ID, " using brute force, capacity ", example.B)
-        result = @benchmark brute($example)
-        push!(brute_results, (example.ID, example.n, length(example.items), result.times))
-        # bnb(example)
-        # push!(bnb_results, (example, result))
+    for example in instances
+        # println("Solving ", example.ID, " using brute force, capacity ", example.M, ", min.price ", example.B)
+        result = brute(example)
+        # println(result)
+        push!(brute_results, result)
     end
     return brute_results
     end
@@ -227,27 +232,40 @@ function readFile(name::String)
     return instances
 end
 
-instances = readFile("../data/NR/NR40_inst.dat")
-# brute_results = eval(instances)
-# dump(brute_results)
-sums = []
+instances = readFile("../data/ZR/ZR40_inst.dat")
+# brute_results # = eval(instances)
 bench = zeros(Int64, length(instances), 2)
+sums = []
 idx = 1
 idx_n = 1
 idx_visited = 2
 uniques = Set()
+brute_id = 1
+bnb_id = 2
+# using DataFrames
+# using DataAPI
+all_results = [[], []]
 for example in instances
-    visited_configurations = bnb(example)
-    bench[idx, idx_n] = example.n
-    bench[idx, idx_visited] = visited_configurations
+    println(idx)
+#     brute_result = brute(example)
+#     push!(all_results[1], brute_result)
+    bnb_result = bnb(example)
+    push!(all_results[2], bnb_result)
+#    bench[idx, brute_id] = brute_result[4]
+    bench[idx, bnb_id] = bnb_result[4]
     global idx += 1
-    push!(uniques, visited_configurations)
+    push!(uniques, bnb_result[4])
 end
-println(std(bench[:, idx_visited]))
-println(var(bench[:, idx_visited]))
-println(mean(bench[:, idx_visited]))
-println(median(bench[:, idx_visited]))
-histogram([1:length(instances)], bench[:,idx_visited])
-savefig("./hist.png")
-# dump(sums)
-
+using JLD2
+save_object("../out/Z40.jld2", all_results)
+for i in [1, 2]
+    if i == 1
+        println("BRUTE RESULTS")
+    else
+        println("BNB RESULTS")
+    end
+    println("std", std(bench[:, i ]))
+    println("var", var(bench[:, i]))
+    println("mean", mean(bench[:, i]))
+    println("median", median(bench[:, i]))
+end
