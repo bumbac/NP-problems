@@ -232,7 +232,7 @@ function readFile(name::String)
     return instances
 end
 
-instances = readFile("../data/ZR/ZR40_inst.dat")
+instances = readFile("../data/ZR/ZR4_inst.dat")
 # brute_results # = eval(instances)
 bench = zeros(Int64, length(instances), 2)
 sums = []
@@ -247,17 +247,17 @@ bnb_id = 2
 all_results = [[], []]
 for example in instances
     println(idx)
-#     brute_result = brute(example)
-#     push!(all_results[1], brute_result)
+    brute_result = brute(example)
+    push!(all_results[1], brute_result)
     bnb_result = bnb(example)
     push!(all_results[2], bnb_result)
-#    bench[idx, brute_id] = brute_result[4]
+    bench[idx, brute_id] = brute_result[4]
     bench[idx, bnb_id] = bnb_result[4]
     global idx += 1
     push!(uniques, bnb_result[4])
 end
 using JLD2
-save_object("../out/Z40.jld2", all_results)
+save_object("../out/ZR4.jld2", all_results)
 for i in [1, 2]
     if i == 1
         println("BRUTE RESULTS")

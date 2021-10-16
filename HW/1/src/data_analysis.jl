@@ -48,6 +48,8 @@ end
 for (root, dirs, files) in walkdir("../out/results")
     for file in files
         println(file)
-        analyze(file)
+        if occursin("Z4", file) || occursin("Z3", file) || occursin("Z2", file)
+            analyze(file)
+        end
     end
 end
