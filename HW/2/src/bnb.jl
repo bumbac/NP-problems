@@ -219,6 +219,7 @@ function readFile(name::String)
                 push!(bag.items, (weight, price, idx))
                 idx += 1
             end
+            println(length(bag.items))
             sort!(bag.items, by = x -> (x[2]/x[1]), rev=true)
             push!(instances, bag)
         end
@@ -267,19 +268,20 @@ function readSolution(filename::String)
 end
 end
 
-
-n = 1
-instances = readFile("../data/NR/NR22_inst.dat")
-checksum = []
-for example in instances[1:n]
-    cs = bnb(example)
-    push!(checksum, cs)
-end
-g = readSolution("../data/NR/NK22_sol.dat")
-for idx in 1:n
-    price = g[idx][3]
-    println("vc = ", checksum[idx][2])
-    if checksum[idx][1] < price
-        println(checksum[idx], " B ",  g[idx][3], "ID ",  g[idx][1])
+function main()
+    n = 1
+    instances = readFile("../data/NR/NR22_inst.dat")
+    checksum = []
+    for example in instances[1:n]
+        cs = bnb(example)
+        push!(checksum, cs)
+    end
+    g = readSolution("../data/NR/NK22_sol.dat")
+    for idx in 1:n
+        price = g[idx][3]
+        println("vc = ", checksum[idx][2])
+        if checksum[idx][1] < price
+            println(checksum[idx], " B ",  g[idx][3], "ID ",  g[idx][1])
+        end
     end
 end
