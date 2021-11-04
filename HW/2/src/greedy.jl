@@ -4,8 +4,6 @@ greedy:
 - Author: sutymate
 - Date: 2021-11-04
 =#
-include("file_loader.jl")
-
 
 function simple_greedy(bag, M)
     curr_price = 0
