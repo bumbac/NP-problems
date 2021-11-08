@@ -5,21 +5,27 @@ main:
 - Date: 2021-10-23
 =#
 
+include("file_loader.jl")
+include("price_dec.jl")
+
 
 function main()
-    n = 4
+    # starting function for loading and solving knapsack problem
+    # number of instances
+    n = 40
     filename = "../data/NK/NK"*string(n)*"_inst.dat"
     instances = readFile(filename)
     filename = "../data/NK/NK"*string(n)*"_sol.dat"
     solutions = readSolution(filename)
     idx = 1
-    # check if valid
+    cnt = 0
     for instance in instances
-        max_price = price_decompose(instance[1], instance[2])
+        max_price = price_decompose(instance[1], instance[2], epsilon_error = 0.01)
         if max_price != solutions[idx][3]
             println("Wrong answer.")
             println(max_price, " ", solutions[idx][3])
-            println()
+            println(idx)
+            cnt += 1
         end
         idx += 1
     end
@@ -44,3 +50,4 @@ function bench()
     print(b_values)
 end
 
+main()

@@ -70,4 +70,3 @@ function readSolution(filename::String)
     return solution
 end
 end
-
