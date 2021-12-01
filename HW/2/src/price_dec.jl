@@ -84,7 +84,7 @@ function price_decompose(bag, M; bits = 0, epsilon_error = 0)
         real_weight += bag[idx, 1] * solution[bag[idx, 3]]
         real_price += bag[idx, 2] * solution[bag[idx, 3]]
     end
-    return real_price
+    return real_price, limit_price
 end
 
 function solution_vector(table, price, items)

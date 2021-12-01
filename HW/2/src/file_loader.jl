@@ -35,6 +35,7 @@ function readFile(name::String)
                     println("ERROR in parsing pairs")
                 end
                 bag[idx, 1] = weight
+                if weight > M price = 0 end
                 bag[idx, 2] = price
                 bag[idx, 3] = idx
                 idx += 1

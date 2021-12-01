@@ -27,7 +27,7 @@ function redux_greedy(bag, M)
     n = size(bag)[1]
     max_price = 0
     for i in 1:n
-        if bag[i, 2] > max_price
+        if bag[i, 2] > max_price && bag[i, 1] <= M
             max_price = bag[i, 2]
         end
     end
