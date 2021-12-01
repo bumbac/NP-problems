@@ -5,6 +5,7 @@ bnb:
 - Date: 2021-10-23
 =#
 using DataStructures
+using Combinatorics
 
 mutable struct BBNode
     ID::Int64
@@ -26,6 +27,39 @@ end
 # comparison for heap, order by ubound
 import Base: isless
 isless(a::BBNode, b::BBNode) = isless(a.ubound, b.ubound)
+
+function brute(bag, M)
+    weight_limit = M
+    sumprice = 0
+    sumweight = 0
+    attempts = 0
+    # weight idx in matrix
+    idx_weight = 1
+    # price idx in matrix
+    idx_price = 2
+    # ID idx in matrix
+    idx_ID = 3
+    ran = collect([1:size(bag)[1];])
+    result = [0, 0, 0]
+    for sset in powerset(ran)
+        sumprice = 0
+        sumweight = 0
+        for id in sset
+            attempts += 1
+            if sumweight + bag[id, idx_weight] > weight_limit continue end
+            sumweight += bag[id, idx_weight]
+            sumprice += bag[id, idx_price]
+            if sumweight == weight_limit break end
+        end
+        if result[2] < sumprice
+            result[1] = sumweight
+            result[2] = sumprice
+            result[3] = attempts
+        end
+    end
+    return result
+end
+
 
 
 function bnb(bag, M)
@@ -86,7 +120,7 @@ function bnb(bag, M)
             # copy vector of taken items
             decision = deepcopy(node.decision)
             # consider this node to be constructed and visited
-            if curr_capacity + matrix[idx, idx_weight] <= M
+            if (curr_capacity + matrix[idx, idx_weight]) <= M
                 # values is multiplied by 0 or 1
                 curr_capacity += matrix[idx, idx_weight]*included
                 real_capacity = curr_capacity
