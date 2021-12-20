@@ -23,7 +23,8 @@ function readFile(name::String)
             catch e
                 println("ERROR in parsing definition")
             end
-            bag = zeros(Int64, (n, 3))
+            n=15
+            bag = zeros(Int64, (15, 3))
             idx = 1
             for i in 4:2:(length(pieces) - 1)
                 weight = 0
@@ -39,6 +40,7 @@ function readFile(name::String)
                 bag[idx, 2] = price
                 bag[idx, 3] = idx
                 idx += 1
+                if idx > 15 break end
             end
             bag = sortslices(bag, dims=1, by=x->(x[2]/x[1]), rev=true)
             push!(instances, (bag, M))
